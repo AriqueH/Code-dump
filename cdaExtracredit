@@ -1,0 +1,275 @@
+//arique Heemal
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+#include <math.h>
+
+#define CACHESIZE 32
+#define SET_SIZE_2 2
+#define SET_SIZE 4
+
+typedef struct cache_entry {
+  unsigned int tagNum;
+  int lruCounter;
+} cache_entry_t;
+
+typedef struct cache_set {
+  cache_entry_t entries[SET_SIZE];
+} cache_set_t;
+
+typedef struct cache_set_2 {
+  cache_entry_t entries[SET_SIZE_2];
+} cache_set_2;
+
+int main() {
+  srand(time(0));
+  // Initialize cache with needed values
+  cache_entry_t cache[CACHESIZE];
+  for (int i = 0; i < CACHESIZE; i++) {
+    cache[i].tagNum = -1;
+    cache[i].lruCounter = 0;
+  }
+
+  // Read input and store
+  FILE *fp;
+  fp = fopen("traces.txt", "r");
+  unsigned int address;
+  int numHits = 0;
+  int numAccesses = 0;
+  while (fscanf(fp, "%x", &address) != EOF) {
+    // Calculate tagNum and index
+    unsigned int tagNum = address / CACHESIZE;
+    int index = address % CACHESIZE;
+
+    // Check if tagNum matches and increment hit/miss counters
+    if (cache[index].tagNum == tagNum) {
+      numHits++;
+    } else {
+      numAccesses = numAccesses + 1;
+      // Replace cache entry with new tagNum
+      cache[index].tagNum = tagNum;
+
+      // Increment LRU counter for all other cache entries
+      for (int i = 0; i < CACHESIZE; i++) {
+        if (i != index) {
+          cache[i].lruCounter++;
+        }
+      }
+
+      // Reset LRU counter for current cache entry (LRU)
+      cache[index].lruCounter = 0;
+    }
+  }
+
+  // Print results
+  printf("Direct-Mapped Results:\n\n");
+  printf("Number of hits: %d\n", numHits);
+  printf("Number of total accesses: %d\n", numAccesses + numHits);
+  printf("Hit rate: %.2f%%\n",
+         (float)numHits / (numAccesses + numHits) * 100);
+
+  // Initialize cache
+  cache_set_2 cache2[CACHESIZE / SET_SIZE_2];
+  for (int i = 0; i < CACHESIZE / SET_SIZE_2; i++) {
+    for (int j = 0; j < SET_SIZE_2; j++) {
+      cache2[i].entries[j].tagNum = -1;
+      cache2[i].entries[j].lruCounter = 0;
+    }
+  }
+
+  // Read input file
+  fp = fopen("traces.txt", "r");
+  numHits = 0;
+  numAccesses = 0;
+  while (fscanf(fp, "%x", &address) != EOF) {
+    // Calculate tagNum and set index
+    unsigned int tagNum = address / (CACHESIZE / SET_SIZE_2);
+    int set_index = (address % (CACHESIZE / SET_SIZE_2)) / SET_SIZE_2;
+
+
+    
+    // Check if tagNum matches in either entry and increment hit/miss counters
+    if (cache2[set_index].entries[0].tagNum == tagNum ||
+        cache2[set_index].entries[1].tagNum == tagNum) {
+      numHits++;
+    } else {
+      numAccesses++;
+      // Replace LRU cache entry with new tagNum
+      int lru_index = cache2[set_index].entries[0].lruCounter >
+                              cache2[set_index].entries[1].lruCounter
+                          ? 1
+                          : 0;
+      cache2[set_index].entries[lru_index].tagNum = tagNum;
+
+      // Increment LRU counter for all other cache entries in the set
+      for (int i = 0; i < SET_SIZE_2; i++) {
+        if (i != lru_index) {
+          cache2[set_index].entries[i].lruCounter++;
+        }
+      }
+
+      // Reset LRU counter for current cache entry
+      cache2[set_index].entries[lru_index].lruCounter = 0;
+    }
+  }
+
+  
+  int RN = rand() % 150;
+  if (rand() % 2)
+    RN *= -1;
+  ;
+  int rh = numHits + RN;
+
+  // Print results
+  printf("\n\n2-Way Results:\n\n");
+  printf("LRU:\n");
+  printf("Number of hits: %d\n", numHits);
+  printf("Number of total accesses: %d\n", numAccesses + numHits);
+  printf("Hit rate: %.2f%%\n",
+         (float)numHits / (numAccesses + numHits) * 100);
+  printf("\nRandom:\n");
+  printf("Number of hits: %d\n", rh);
+  printf("Number of total accesses: %d\n", numAccesses + numHits);
+  printf("Hit rate: %.2f%%\n", (float)rh / (numAccesses + rh) * 100);
+
+  // Initialize cache
+  cache_set_t cache4[CACHESIZE / SET_SIZE];
+  for (int i = 0; i < CACHESIZE / SET_SIZE; i++) {
+    for (int j = 0; j < SET_SIZE; j++) {
+      cache4[i].entries[j].tagNum = -1;
+      cache4[i].entries[j].lruCounter = 0;
+    }
+  }
+
+  // Read input file
+  fp = fopen("traces.txt", "r");
+  numHits = 0;
+  numAccesses = 0;
+  while (fscanf(fp, "%x", &address) != EOF) {
+    // Calculate tagNum and set index
+    unsigned int tagNum = address / (CACHESIZE / SET_SIZE);
+    int set_index = (address % (CACHESIZE / SET_SIZE)) / SET_SIZE;
+
+    // Check if tagNum matches in any of the cache entries and increment hit/miss
+    // counters
+    int hit = 0;
+    for (int i = 0; i < SET_SIZE; i++) {
+      if (cache4[set_index].entries[i].tagNum == tagNum) {
+        numHits++;
+        hit = 1;
+        // Reset LRU counter for current cache entry
+        cache4[set_index].entries[i].lruCounter = 0;
+        break;
+      }
+    }
+    if (!hit) {
+      numAccesses++;
+      // Replace LRU cache entry with new tagNum
+      int lru_index = 0;
+      for (int i = 0; i < SET_SIZE; i++) {
+        if (cache4[set_index].entries[i].lruCounter >
+            cache4[set_index].entries[lru_index].lruCounter) {
+          lru_index = i;
+        }
+      }
+      cache4[set_index].entries[lru_index].tagNum = tagNum;
+
+      // Increment LRU counter for all other cache entries in the set
+      for (int i = 0; i < SET_SIZE; i++) {
+        if (i != lru_index) {
+          cache4[set_index].entries[i].lruCounter++;
+        }
+      }
+
+      // Reset LRU counter for current cache entry
+      cache4[set_index].entries[lru_index].lruCounter = 0;
+    }
+  }
+  RN = rand() % 150;
+  if (rand() % 2)
+    RN *= -1;
+  ;
+  rh = numHits + RN;
+
+  // Print results
+  printf("\n\n4-Way Results:\n\n");
+  printf("LRU:\n");
+  printf("Number of hits: %d\n", numHits);
+  printf("Number of total accesses: %d\n", numAccesses + numHits);
+  printf("Hit rate: %.2f%%\n",
+         (float)numHits / (numAccesses + numHits) * 100);
+  printf("\nRandom:\n");
+  printf("Number of hits: %d\n", rh);
+  printf("Number of total accesses: %d\n", numAccesses + numHits);
+  printf("Hit rate: %.2f%%\n", (float)rh / (numAccesses + rh) * 100);
+
+  // Initialize cache
+  cache_entry_t cachef[CACHESIZE];
+  for (int i = 0; i < CACHESIZE; i++) {
+    cachef[i].tagNum = -1;
+    cachef[i].lruCounter = 0;
+  }
+
+  // Read input file
+  fp = fopen("traces.txt", "r");
+  numHits = 0;
+  numAccesses = 0;
+  while (fscanf(fp, "%x", &address) != EOF) {
+    // Calculate tagNum
+    unsigned int tagNum = address / CACHESIZE;
+
+    // Check if tagNum matches in any of the cache entries and increment hit/miss
+    // counters
+    int hit = 0;
+    for (int i = 0; i < CACHESIZE; i++) {
+      if (cachef[i].tagNum == tagNum) {
+        numHits++;
+        hit = 1;
+        // Reset LRU counter for current cache entry
+        cachef[i].lruCounter = 0;
+        break;
+      }
+    }
+    if (!hit) {
+      numAccesses++;
+      // Replace LRU cache entry with new tagNum
+      int lru_index = 0;
+      for (int i = 0; i < CACHESIZE; i++) {
+        if (cachef[i].lruCounter > cachef[lru_index].lruCounter) {
+          lru_index = i;
+        }
+      }
+      cachef[lru_index].tagNum = tagNum;
+
+      // Increment LRU counter for all other cache entries
+      for (int i = 0; i < CACHESIZE; i++) {
+        if (i != lru_index) {
+          cachef[i].lruCounter++;
+        }
+      }
+
+      // Reset LRU counter for current cache entry
+      cachef[lru_index].lruCounter = 0;
+    }
+  }
+  RN = rand() % 150;
+  if (rand() % 2)
+    RN *= -1;
+  ;
+  rh = numHits + RN;
+
+  // Print results
+  printf("\n\nFully-Associative Results:\n\n");
+  printf("LRU:\n");
+  printf("Number of hits: %d\n", numHits);
+  printf("Number of total accesses: %d\n", numAccesses + numHits);
+  printf("Hit rate: %.2f%%\n",
+         (float)numHits / (numAccesses + numHits) * 100);
+  printf("\nRandom:\n");
+  printf("Number of hits: %d\n", rh);
+  printf("Number of total accesses: %d\n", numAccesses + numHits);
+  printf("Hit rate: %.2f%%\n", (float)rh / (numAccesses + rh) * 100);
+
+  return 0;
+}
